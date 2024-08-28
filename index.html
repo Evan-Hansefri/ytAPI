@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YouTube Channel Video Player</title>
     <style>
-        /* CSS Styling */
         body {
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
@@ -38,17 +37,23 @@
             border: 0;
         }
 
-        .thumbnail-list {
+        .thumbnail-list-container {
+            position: relative;
             display: flex;
             justify-content: center;
-            flex-wrap: wrap;
-            gap: 10px;
+            align-items: center;
+        }
+
+        .thumbnail-list {
+            display: flex;
+            transition: transform 0.3s ease;
         }
 
         .thumbnail {
             cursor: pointer;
             border: 2px solid transparent;
             transition: border 0.3s ease;
+            margin: 0 5px;
         }
 
         .thumbnail img {
@@ -57,14 +62,21 @@
             object-fit: cover;
         }
 
-        .thumbnail:hover {
-            border: 2px solid #007BFF;
-        }
-
         .thumbnail.active {
             border: 2px solid #007BFF;
         }
 
+        .arrow {
+            cursor: pointer;
+            font-size: 24px;
+            margin: 0 10px;
+            user-select: none;
+        }
+
+        .arrow.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -73,17 +85,57 @@
     <div class="video-container">
         <iframe id="main-video" src="" frameborder="0" allowfullscreen></iframe>
     </div>
-    <div id="thumbnail-list" class="thumbnail-list">
-        <!-- Thumbnails will be populated here -->
+    <div class="thumbnail-list-container">
+        <span id="prev" class="arrow">&lt;</span>
+        <div id="thumbnail-list" class="thumbnail-list">
+            <!-- Thumbnails will be populated here -->
+        </div>
+        <span id="next" class="arrow">&gt;</span>
     </div>
 </div>
 
 <script>
     const API_KEY = 'AIzaSyCA0rNa3DIIqnmpoIY2hxjENZxmT31qRDw';
     const channelId = 'UCiriEw_paVhOopwna_oUd-A'; // Evan Hansefri Channel ID
-    const maxResults = 10; // Number of videos to display
+    const maxResults = 10; // Number of videos to fetch
+    const thumbnailsPerPage = 4; // Number of thumbnails visible at a time
 
-    // Fetch videos from YouTube API
+    let currentStartIndex = 0;
+
+    function updateThumbnails(data) {
+        const thumbnailList = document.getElementById('thumbnail-list');
+        const mainVideo = document.getElementById('main-video');
+        thumbnailList.innerHTML = '';
+
+        const slicedItems = data.items.slice(currentStartIndex, currentStartIndex + thumbnailsPerPage);
+
+        slicedItems.forEach((item, index) => {
+            const videoId = item.id.videoId;
+            const thumbnailUrl = item.snippet.thumbnails.medium.url;
+
+            const div = document.createElement('div');
+            div.className = 'thumbnail';
+            div.innerHTML = `<img src="${thumbnailUrl}" alt="${item.snippet.title}">`;
+            div.dataset.videoId = videoId;
+
+            if (index === 0 && currentStartIndex === 0) {
+                div.classList.add('active');
+                mainVideo.src = `https://www.youtube.com/embed/${videoId}`;
+            }
+
+            div.addEventListener('click', function() {
+                document.querySelector('.thumbnail.active').classList.remove('active');
+                div.classList.add('active');
+                mainVideo.src = `https://www.youtube.com/embed/${videoId}`;
+            });
+
+            thumbnailList.appendChild(div);
+        });
+
+        document.getElementById('prev').classList.toggle('disabled', currentStartIndex === 0);
+        document.getElementById('next').classList.toggle('disabled', currentStartIndex + thumbnailsPerPage >= data.items.length);
+    }
+
     fetch(`https://www.googleapis.com/youtube/v3/search?key=${API_KEY}&channelId=${channelId}&part=snippet&type=video&order=date&maxResults=${maxResults}`)
         .then(response => response.json())
         .then(data => {
@@ -91,34 +143,20 @@
                 throw new Error("No videos found.");
             }
 
-            const thumbnailList = document.getElementById('thumbnail-list');
-            const mainVideo = document.getElementById('main-video');
+            updateThumbnails(data);
 
-            data.items.forEach((item, index) => {
-                const videoId = item.id.videoId;
-                const thumbnailUrl = item.snippet.thumbnails.medium.url;
-
-                // Create thumbnail
-                const div = document.createElement('div');
-                div.className = 'thumbnail';
-                div.innerHTML = `<img src="${thumbnailUrl}" alt="${item.snippet.title}">`;
-                div.dataset.videoId = videoId;
-
-                // Set the first video as active
-                if (index === 0) {
-                    div.classList.add('active');
-                    mainVideo.src = `https://www.youtube.com/embed/${videoId}`;
+            document.getElementById('prev').addEventListener('click', function() {
+                if (currentStartIndex > 0) {
+                    currentStartIndex -= thumbnailsPerPage;
+                    updateThumbnails(data);
                 }
+            });
 
-                // On click, change the main video
-                div.addEventListener('click', function() {
-                    document.querySelector('.thumbnail.active').classList.remove('active');
-                    div.classList.add('active');
-                    mainVideo.src = `https://www.youtube.com/embed/${videoId}`;
-                });
-
-                // Append to thumbnail list
-                thumbnailList.appendChild(div);
+            document.getElementById('next').addEventListener('click', function() {
+                if (currentStartIndex + thumbnailsPerPage < data.items.length) {
+                    currentStartIndex += thumbnailsPerPage;
+                    updateThumbnails(data);
+                }
             });
         })
         .catch(error => {
