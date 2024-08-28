@@ -3,22 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Channel Widget</title>
+    <title>YouTube Channel Video Player</title>
     <style>
-        /* CSS styling */
+        /* CSS Styling */
         body {
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
             padding: 20px;
+            text-align: center;
         }
 
-        .widget {
+        .video-player {
             max-width: 800px;
             margin: 0 auto;
             background-color: white;
-            border: 1px solid #ddd;
             padding: 20px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
 
         .video-container {
@@ -26,6 +26,7 @@
             padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
             height: 0;
             overflow: hidden;
+            margin-bottom: 20px;
         }
 
         .video-container iframe {
@@ -37,77 +38,84 @@
             border: 0;
         }
 
-        .video-list {
-            list-style-type: none;
-            padding: 0;
-            margin: 20px 0 0;
+        .thumbnail-list {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
-        .video-list li {
-            margin-bottom: 10px;
+        .thumbnail {
             cursor: pointer;
-            border: 1px solid #ddd;
-            padding: 10px;
-            background-color: #f9f9f9;
-            transition: background-color 0.3s ease;
+            border: 2px solid transparent;
+            transition: border 0.3s ease;
         }
 
-        .video-list li:hover {
-            background-color: #f0f0f0;
+        .thumbnail img {
+            width: 120px;
+            height: 90px;
+            object-fit: cover;
         }
 
-        .video-title {
-            font-size: 16px;
-            margin: 0;
+        .thumbnail:hover {
+            border: 2px solid #007BFF;
         }
+
+        .thumbnail.active {
+            border: 2px solid #007BFF;
+        }
+
     </style>
 </head>
 <body>
 
-<div class="widget">
+<div class="video-player">
     <div class="video-container">
-        <iframe id="main-video" src="https://www.youtube.com/c/EvanHansefri" frameborder="0" allowfullscreen></iframe>
+        <iframe id="main-video" src="https://www.youtube.com/embed/" frameborder="0" allowfullscreen></iframe>
     </div>
-    <ul id="video-list" class="video-list">
-        <!-- Video list items will be inserted here dynamically -->
-    </ul>
+    <div id="thumbnail-list" class="thumbnail-list">
+        <!-- Thumbnails will be populated here -->
+    </div>
 </div>
 
 <script>
-    const API_KEY = 'AIzaSyCA0rNa3DIIqnmpoIY2hxjENZxmT31qRDw'; // Replace with your YouTube API Key
-    const channelId = 'https://www.youtube.com/c/EvanHansefri'; // Replace with your Channel ID
-    const maxResults = 5; // Number of videos to display
+    const API_KEY = 'AIzaSyCA0rNa3DIIqnmpoIY2hxjENZxmT31qRDw';
+    const channelId = 'UCcC58Kki7F7P9s5vBB9Zwew'; // Evan Hansefri Channel ID
+    const maxResults = 10; // Number of videos to display
 
     // Fetch videos from YouTube API
     fetch(`https://www.googleapis.com/youtube/v3/search?key=${API_KEY}&channelId=${channelId}&part=snippet,id&order=date&maxResults=${maxResults}`)
         .then(response => response.json())
         .then(data => {
-            const videoList = document.getElementById('video-list');
+            const thumbnailList = document.getElementById('thumbnail-list');
             const mainVideo = document.getElementById('main-video');
 
-            // Populate the video list
-            data.items.forEach(item => {
+            data.items.forEach((item, index) => {
                 const videoId = item.id.videoId;
-                const videoTitle = item.snippet.title;
+                const thumbnailUrl = item.snippet.thumbnails.medium.url;
 
-                // Create list item
-                const li = document.createElement('li');
-                li.innerHTML = `<p class="video-title">${videoTitle}</p>`;
-                li.dataset.videoId = videoId;
+                // Create thumbnail
+                const div = document.createElement('div');
+                div.className = 'thumbnail';
+                div.innerHTML = `<img src="${thumbnailUrl}" alt="${item.snippet.title}">`;
+                div.dataset.videoId = videoId;
+
+                // Set the first video as active
+                if (index === 0) {
+                    div.classList.add('active');
+                    mainVideo.src = `https://www.youtube.com/embed/${videoId}`;
+                }
 
                 // On click, change the main video
-                li.addEventListener('click', function() {
+                div.addEventListener('click', function() {
+                    document.querySelector('.thumbnail.active').classList.remove('active');
+                    div.classList.add('active');
                     mainVideo.src = `https://www.youtube.com/embed/${videoId}`;
                 });
 
-                // Append to list
-                videoList.appendChild(li);
+                // Append to thumbnail list
+                thumbnailList.appendChild(div);
             });
-
-            // Load the first video in the main player
-            if (data.items.length > 0) {
-                mainVideo.src = `https://www.youtube.com/embed/${data.items[0].id.videoId}`;
-            }
         })
         .catch(error => console.error('Error fetching data:', error));
 </script>
